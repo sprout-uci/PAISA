@@ -1,0 +1,21 @@
+[req]
+default_bits       = 256
+default_days       = 365
+distinguished_name = req_distinguished_name
+prompt             = no
+
+[req_distinguished_name]
+C  = US
+ST = CA
+L  = San Francisco
+O  = Manufacturer
+CN = Manufacturer Root CA
+
+[extensions]
+basicConstraints       = critical,CA:true
+keyUsage               = critical,keyCertSign,cRLSign
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer:always
+
+[ecdsa_default]
+sigopt = prime256v1

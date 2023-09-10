@@ -1,0 +1,69 @@
+menu "Example Configuration"
+
+    config ESP_WIFI_SSID
+        string "WiFi SSID"
+        default "myssid"
+        help
+            SSID (network name) for the example to connect to.
+
+    config ESP_WIFI_PASSWORD
+        string "WiFi Password"
+        default "mypassword"
+        help
+            WiFi password (WPA or WPA2) for the example to use.
+
+    config ESP_WIFI_CHANNEL
+        int "WiFi Channel"
+        range 1 13
+        default 1
+        help
+            WiFi channel (network channel) for the example to use.
+
+    config ESP_MAX_STA_CONN
+        int "Maximal STA connections"
+        default 4
+        help
+            Max number of the STA connects to AP.
+
+    orsource "$IDF_PATH/examples/common_components/env_caps/$IDF_TARGET/Kconfig.env_caps"
+
+    config EXAMPLE_UART_PORT_NUM
+        int "UART port number"
+        range 0 2 if IDF_TARGET_ESP32 || IDF_TARGET_ESP32S3
+        default 2 if IDF_TARGET_ESP32 || IDF_TARGET_ESP32S3
+        range 0 1 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32C2 || IDF_TARGET_ESP32H2
+        default 1 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32C2 || IDF_TARGET_ESP32H2
+        help
+            UART communication port number for the example.
+            See UART documentation for available port numbers.
+
+    config EXAMPLE_UART_BAUD_RATE
+        int "UART communication speed"
+        range 1200 115200
+        default 115200
+        help
+            UART communication speed for Modbus example.
+
+    config EXAMPLE_UART_RXD
+        int "UART RXD pin number"
+        range ENV_GPIO_RANGE_MIN ENV_GPIO_IN_RANGE_MAX
+        default 7
+        help
+            GPIO number for UART RX pin. See UART documentation for more information
+            about available pin numbers for UART.
+
+    config EXAMPLE_UART_TXD
+        int "UART TXD pin number"
+        range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
+        default 6
+        help
+            GPIO number for UART TX pin. See UART documentation for more information
+            about available pin numbers for UART.
+
+    config EXAMPLE_TASK_STACK_SIZE
+        int "UART echo example task stack size"
+        range 1024 16384
+        default 2048
+        help
+            Defines stack size for UART echo example. Insufficient stack size can cause crash.
+endmenu

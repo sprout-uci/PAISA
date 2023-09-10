@@ -1,0 +1,17 @@
+.mcuxpressoide_packages_support
+.metadata
+*logs
+**/Debug
+**/build
+**/.gradle
+**/.vscode
+**/.metadata
+**/.idea
+**/.settings
+**/local.properties
+*.old
+**/.o
+**/.d
+**/.s
+*.swp
+**/secp*

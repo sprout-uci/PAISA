@@ -1,0 +1,14 @@
+[req]
+default_bits       = 256
+distinguished_name = req_distinguished_name
+prompt             = no
+
+[req_distinguished_name]
+C  = US
+ST = California
+L  = Los Angeles
+O  = Manufacturer
+CN = Device CA
+
+[ecdsa_default]
+sigopt = prime256v1

@@ -1,0 +1,19 @@
+[req]
+default_bits       = 256
+default_days       = 365
+distinguished_name = req_distinguished_name
+req_extensions     = req_ext
+
+[req_distinguished_name]
+C  = US
+ST = California
+L  = Los Angeles
+O  = Manufacturer
+CN = Device CA
+
+[req_ext]
+keyUsage         = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+
+[ecdsa_default]
+sigopt = prime256v1
