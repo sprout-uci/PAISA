@@ -578,7 +578,7 @@
                   </masking>
                   <security>
                      <interrupt id="acmp_capt_irq" secure="Secure"/>
-                     <interrupt id="adc_irq" secure="Non-secure"/>
+                     <interrupt id="adc_irq" secure="Secure"/>
                      <interrupt id="casper_irq" secure="Secure"/>
                      <interrupt id="ctimer0_irq" secure="Secure"/>
                      <interrupt id="ctimer1_irq" secure="Secure"/>

@@ -32,28 +32,10 @@
 
 #include "clock_config.h"
 #include "fsl_power.h"
-
-#include "fsl_lpadc.h"
-#include "fsl_anactrl.h"
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
 
-#define DEMO_LPADC_BASE ADC0
-#define DEMO_LPADC_IRQn ADC0_IRQn
-#define DEMO_LPADC_IRQ_HANDLER_FUNC ADC0_IRQHandler
-#define DEMO_LPADC_TEMP_SENS_CHANNEL 26U
-#define DEMO_LPADC_USER_CMDID 1U /* CMD1 */
-#define DEMO_LPADC_SAMPLE_CHANNEL_MODE kLPADC_SampleChannelDiffBothSide
-#define DEMO_LPADC_VREF_SOURCE kLPADC_ReferenceVoltageAlt2
-#define DEMO_LPADC_DO_OFFSET_CALIBRATION false
-#define DEMO_LPADC_OFFSET_VALUE_A 0x10U
-#define DEMO_LPADC_OFFSET_VALUE_B 0x10U
-#define DEMO_LPADC_USE_HIGH_RESOLUTION true
-#define DEMO_LPADC_TEMP_PARAMETER_A FSL_FEATURE_LPADC_TEMP_PARAMETER_A
-#define DEMO_LPADC_TEMP_PARAMETER_B FSL_FEATURE_LPADC_TEMP_PARAMETER_B
-#define DEMO_LPADC_TEMP_PARAMETER_ALPHA FSL_FEATURE_LPADC_TEMP_PARAMETER_ALPHA
-#define DEMO_LPADC_TEMP_THRESHOLD	30
 
 #if defined(__ARMCC_VERSION)
 /* Externs needed by MPU setup code.
@@ -106,8 +88,6 @@ static uint32_t ulNonSecureCounter = 0;
  * Prototypes
  ******************************************************************************/
 
-static void prvThermalTask(void *pvParameters);
-
 /**
  * @brief Creates all the tasks for this demo.
  */
@@ -143,76 +123,11 @@ static void prvLEDTogglingTask(void *pvParameters);
  * @brief Stack overflow hook.
  */
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
-
-float DEMO_MeasureTemperature(ADC_Type *base, uint32_t commandId, uint32_t index);
-static void ADC_Configuration(void);
-
-/*-----------------------------------------------------------*/
-
-/*******************************************************************************
- * Variables
- ******************************************************************************/
-
-lpadc_conv_command_config_t g_LpadcCommandConfigStruct; /* Structure to configure conversion command. */
-volatile bool g_LpadcConversionCompletedFlag = false;
-float g_CurrentTemperature = 0.0f;
-#if (defined(DEMO_LPADC_USE_HIGH_RESOLUTION) && (DEMO_LPADC_USE_HIGH_RESOLUTION))
-const uint32_t g_LpadcFullRange = 65536U;
-#else
-const uint32_t g_LpadcFullRange = 4096U;
-#endif /* DEMO_LPADC_USE_HIGH_RESOLUTION */
-
 /*-----------------------------------------------------------*/
 
 /*******************************************************************************
  * Code
  ******************************************************************************/
-
-/*!
- * brief Measure the temperature.
- */
-float DEMO_MeasureTemperature(ADC_Type *base, uint32_t commandId, uint32_t index)
-{
-    lpadc_conv_result_t convResultStruct;
-    uint16_t Vbe1            = 0U;
-    uint16_t Vbe8            = 0U;
-    uint32_t convResultShift = 3U;
-    float parameterSlope     = DEMO_LPADC_TEMP_PARAMETER_A;
-    float parameterOffset    = DEMO_LPADC_TEMP_PARAMETER_B;
-    float parameterAlpha     = DEMO_LPADC_TEMP_PARAMETER_ALPHA;
-    float temperature        = -273.15f; /* Absolute zero degree as the incorrect return value. */
-
-#if defined(FSL_FEATURE_LPADC_TEMP_SENS_BUFFER_SIZE) && (FSL_FEATURE_LPADC_TEMP_SENS_BUFFER_SIZE == 4U)
-    /* For best temperature measure performance, the recommended LOOP Count should be 4, but the first two results is
-     * useless. */
-    /* Drop the useless result. */
-    (void)LPADC_GetConvResult(base, &convResultStruct, (uint8_t)index);
-    (void)LPADC_GetConvResult(base, &convResultStruct, (uint8_t)index);
-#endif /* FSL_FEATURE_LPADC_TEMP_SENS_BUFFER_SIZE */
-
-    /* Read the 2 temperature sensor result. */
-    if (true == LPADC_GetConvResult(base, &convResultStruct, (uint8_t)index))
-    {
-        Vbe1 = convResultStruct.convValue >> convResultShift;
-        if (true == LPADC_GetConvResult(base, &convResultStruct, (uint8_t)index))
-        {
-            Vbe8 = convResultStruct.convValue >> convResultShift;
-            /* Final temperature = A*[alpha*(Vbe8-Vbe1)/(Vbe8 + alpha*(Vbe8-Vbe1))] - B. */
-            temperature = parameterSlope * (parameterAlpha * ((float)Vbe8 - (float)Vbe1) /
-                                            ((float)Vbe8 + parameterAlpha * ((float)Vbe8 - (float)Vbe1))) -
-                          parameterOffset;
-        }
-    }
-
-    return temperature;
-}
-
-void DEMO_LPADC_IRQ_HANDLER_FUNC(void)
-{
-    g_CurrentTemperature           = DEMO_MeasureTemperature(DEMO_LPADC_BASE, DEMO_LPADC_USER_CMDID, 0U);
-    g_LpadcConversionCompletedFlag = true;
-    SDK_ISR_EXIT_BARRIER;
-}
 
 void SystemInit(void)
 {
@@ -225,35 +140,26 @@ void SystemInit(void)
     SCB->NSACR |= ((3UL << 0) | (3UL << 10)); /* enable CP0, CP1, CP10, CP11 Non-secure Access */
 }
 
+
 static void prvCreateTasks(void)
 {
     /* Create the secure calling task. */
-    (void)xTaskCreate(prvSecureCallingTask,                 /* The function that implements the demo task. */
-                      "ScCall",                             /* The name to assign to the task being created. */
-                      configMINIMAL_STACK_SIZE + 100,       /* The size, in WORDS (not bytes), of the stack to allocate for
-                                                         the task being created. */
-                      NULL,                                 /* The task parameter is not being used. */
-                      portPRIVILEGE_BIT | tskIDLE_PRIORITY, /* The priority at which the task being created will run. */
-                      NULL);
-
-    /* Create the LED toggling task. */
-    (void)xTaskCreate(prvLEDTogglingTask,                   /* The function that implements the demo task. */
-                      "LedToggle",                          /* The name to assign to the task being created. */
-                      configMINIMAL_STACK_SIZE + 100,       /* The size, in WORDS (not bytes), of the stack to allocate for
-                                                         the task being created. */
-                      NULL,                                 /* The task parameter is not being used. */
-                      portPRIVILEGE_BIT | tskIDLE_PRIORITY, /* The priority at which the task being created will run. */
-                      NULL);
-
-
-    /* Create the thermal task. */
-    (void)xTaskCreate(prvThermalTask,             /* The function that implements the demo task. */
-                      "Thermal",                    /* The name to assign to the task being created. */
+    (void)xTaskCreate(prvSecureCallingTask,           /* The function that implements the demo task. */
+                      "ScCall",                       /* The name to assign to the task being created. */
                       configMINIMAL_STACK_SIZE + 100, /* The size, in WORDS (not bytes), of the stack to allocate for
                                                    the task being created. */
                       NULL,                           /* The task parameter is not being used. */
                       portPRIVILEGE_BIT | tskIDLE_PRIORITY, /* The priority at which the task being created will run. */
-                      NULL);                     
+                      NULL);
+
+    /* Create the LED toggling task. */
+    (void)xTaskCreate(prvLEDTogglingTask,             /* The function that implements the demo task. */
+                      "LedToggle",                    /* The name to assign to the task being created. */
+                      configMINIMAL_STACK_SIZE + 100, /* The size, in WORDS (not bytes), of the stack to allocate for
+                                                   the task being created. */
+                      NULL,                           /* The task parameter is not being used. */
+                      portPRIVILEGE_BIT | tskIDLE_PRIORITY, /* The priority at which the task being created will run. */
+                      NULL);
 }
 /*-----------------------------------------------------------*/
 
@@ -265,34 +171,6 @@ static void prvCallback(void)
     ulNonSecureCounter += 1;
 }
 /*-----------------------------------------------------------*/
-
-static void prvThermalTask(void *pvParameters)
-{
-	/* This task calls secure side functions. So allocate a
-	     * secure context for it. */
-	portALLOCATE_SECURE_CONTEXT(configMINIMAL_SECURE_STACK_SIZE);
-
-	// Currently, there is an issue to initiate a clock for ADC.
-	//ADC_Configuration();
-
-	 for (;;)
-	{
-		 g_LpadcConversionCompletedFlag = false;
-//		 LPADC_DoSoftwareTrigger(DEMO_LPADC_BASE, 1U); /* 1U is trigger0 mask. */
-//		 while (false == g_LpadcConversionCompletedFlag)
-//		 {
-//		 }
-
-//		 if (g_CurrentTemperature > DEMO_LPADC_TEMP_THRESHOLD)
-//		 {
-			 /* Call the secure side function to send the packet to server. */
-			 send_packet_nsc((uint8_t *)&g_CurrentTemperature, sizeof(g_CurrentTemperature));
-//		 }
-
-		/* Wait for a second. */
-		vTaskDelay(pdMS_TO_TICKS(1000));
-	}
-}
 
 static void prvSecureCallingTask(void *pvParameters)
 {
@@ -325,7 +203,7 @@ static void prvSecureCallingTask(void *pvParameters)
         vToggleGreenLED();
 
         /* Update the last values for both the counters. */
-        ulLastSecureCounter = ulCurrentSecureCounter;
+        ulLastSecureCounter    = ulCurrentSecureCounter;
         ulLastNonSecureCounter = ulNonSecureCounter;
 
         /* Wait for a second. */
@@ -437,8 +315,8 @@ void vGetRegistersFromStack(uint32_t *pulFaultStackAddress)
     r3 = pulFaultStackAddress[3];
 
     r12 = pulFaultStackAddress[4];
-    lr = pulFaultStackAddress[5];
-    pc = pulFaultStackAddress[6];
+    lr  = pulFaultStackAddress[5];
+    pc  = pulFaultStackAddress[6];
     psr = pulFaultStackAddress[7];
 
     /* Remove compiler warnings about the variables not being used. */
@@ -501,76 +379,3 @@ int main(void)
     }
 }
 /*-----------------------------------------------------------*/
-
-static void ADC_Configuration(void)
-{
-    lpadc_config_t lpadcConfigStruct;
-    lpadc_conv_trigger_config_t lpadcTriggerConfigStruct;
-
-    /* Init ADC peripheral. */
-    LPADC_GetDefaultConfig(&lpadcConfigStruct);
-    lpadcConfigStruct.enableAnalogPreliminary = true;
-    lpadcConfigStruct.powerLevelMode          = kLPADC_PowerLevelAlt4;
-#if defined(DEMO_LPADC_VREF_SOURCE)
-    lpadcConfigStruct.referenceVoltageSource = DEMO_LPADC_VREF_SOURCE;
-#endif /* DEMO_LPADC_VREF_SOURCE */
-#if defined(FSL_FEATURE_LPADC_HAS_CTRL_CAL_AVGS) && FSL_FEATURE_LPADC_HAS_CTRL_CAL_AVGS
-    lpadcConfigStruct.conversionAverageMode = kLPADC_ConversionAverage128;
-#endif /* FSL_FEATURE_LPADC_HAS_CTRL_CAL_AVGS */
-#if defined(FSL_FEATURE_LPADC_TEMP_SENS_BUFFER_SIZE)
-    lpadcConfigStruct.FIFO0Watermark = FSL_FEATURE_LPADC_TEMP_SENS_BUFFER_SIZE - 1U;
-#endif /* FSL_FEATURE_LPADC_TEMP_SENS_BUFFER_SIZE */
-    LPADC_Init(DEMO_LPADC_BASE, &lpadcConfigStruct);
-#if (defined(FSL_FEATURE_LPADC_FIFO_COUNT) && (FSL_FEATURE_LPADC_FIFO_COUNT == 2U))
-    LPADC_DoResetFIFO0(DEMO_LPADC_BASE);
-#else
-    LPADC_DoResetFIFO(DEMO_LPADC_BASE);
-#endif
-
-    /* Do ADC calibration. */
-#if defined(FSL_FEATURE_LPADC_HAS_CTRL_CALOFS) && FSL_FEATURE_LPADC_HAS_CTRL_CALOFS
-#if defined(FSL_FEATURE_LPADC_HAS_OFSTRIM) && FSL_FEATURE_LPADC_HAS_OFSTRIM
-    /* Request offset calibration. */
-#if defined(DEMO_LPADC_DO_OFFSET_CALIBRATION) && DEMO_LPADC_DO_OFFSET_CALIBRATION
-    LPADC_DoOffsetCalibration(DEMO_LPADC_BASE);
-#else
-    LPADC_SetOffsetValue(DEMO_LPADC_BASE, DEMO_LPADC_OFFSET_VALUE_A, DEMO_LPADC_OFFSET_VALUE_B);
-#endif /* DEMO_LPADC_DO_OFFSET_CALIBRATION */
-#endif /* FSL_FEATURE_LPADC_HAS_OFSTRIM */
-    /* Request gain calibration. */
-    LPADC_DoAutoCalibration(DEMO_LPADC_BASE);
-#endif /* FSL_FEATURE_LPADC_HAS_CTRL_CALOFS */
-
-    /* Set conversion CMD configuration. */
-    LPADC_GetDefaultConvCommandConfig(&g_LpadcCommandConfigStruct);
-    g_LpadcCommandConfigStruct.channelNumber       = DEMO_LPADC_TEMP_SENS_CHANNEL;
-    g_LpadcCommandConfigStruct.sampleChannelMode   = DEMO_LPADC_SAMPLE_CHANNEL_MODE;
-    g_LpadcCommandConfigStruct.sampleTimeMode      = kLPADC_SampleTimeADCK131;
-    g_LpadcCommandConfigStruct.hardwareAverageMode = kLPADC_HardwareAverageCount128;
-#if defined(FSL_FEATURE_LPADC_TEMP_SENS_BUFFER_SIZE)
-    g_LpadcCommandConfigStruct.loopCount = FSL_FEATURE_LPADC_TEMP_SENS_BUFFER_SIZE - 1U;
-#endif /* FSL_FEATURE_LPADC_TEMP_SENS_BUFFER_SIZE */
-#if defined(FSL_FEATURE_LPADC_HAS_CMDL_MODE) && FSL_FEATURE_LPADC_HAS_CMDL_MODE
-    g_LpadcCommandConfigStruct.conversionResolutionMode = kLPADC_ConversionResolutionHigh;
-#endif /* FSL_FEATURE_LPADC_HAS_CMDL_MODE */
-    LPADC_SetConvCommandConfig(DEMO_LPADC_BASE, DEMO_LPADC_USER_CMDID, &g_LpadcCommandConfigStruct);
-
-    /* Set trigger configuration. */
-    LPADC_GetDefaultConvTriggerConfig(&lpadcTriggerConfigStruct);
-    lpadcTriggerConfigStruct.targetCommandId = DEMO_LPADC_USER_CMDID;
-    LPADC_SetConvTriggerConfig(DEMO_LPADC_BASE, 0U, &lpadcTriggerConfigStruct); /* Configurate the trigger0. */
-
-    /* Enable the watermark interrupt. */
-#if (defined(FSL_FEATURE_LPADC_FIFO_COUNT) && (FSL_FEATURE_LPADC_FIFO_COUNT == 2U))
-    LPADC_EnableInterrupts(DEMO_LPADC_BASE, kLPADC_FIFO0WatermarkInterruptEnable);
-#else
-    LPADC_EnableInterrupts(DEMO_LPADC_BASE, kLPADC_FIFOWatermarkInterruptEnable);
-#endif /* FSL_FEATURE_LPADC_FIFO_COUNT */
-    EnableIRQ(DEMO_LPADC_IRQn);
-
-    /* Eliminate the first two inaccurate results. */
-    LPADC_DoSoftwareTrigger(DEMO_LPADC_BASE, 1U); /* 1U is trigger0 mask. */
-    while (false == g_LpadcConversionCompletedFlag)
-    {
-    }
-}

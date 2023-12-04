@@ -61,9 +61,4 @@ void vToggleBlueLED(void);
  */
 uint32_t getSystemCoreClock(void);
 
-/**
- * @brief Send a packet through secure network.
- */
-void send_packet_nsc(uint8_t *msg, size_t msg_len);
-
 #endif /* __NSC_FUNCTIONS_H__ */

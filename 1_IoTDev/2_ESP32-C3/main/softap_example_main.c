@@ -24,6 +24,11 @@
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
 
+/* The examples use WiFi configuration that you can set via project configuration menu.
+
+   If you'd rather not, just change the below entries to strings with
+   the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
+*/
 #define EXAMPLE_ESP_WIFI_SSID CONFIG_ESP_WIFI_SSID
 #define EXAMPLE_ESP_WIFI_PASS CONFIG_ESP_WIFI_PASSWORD
 #define EXAMPLE_ESP_WIFI_CHANNEL CONFIG_ESP_WIFI_CHANNEL
@@ -50,28 +55,11 @@ static EventGroupHandle_t s_wifi_event_group;
  * - we failed to connect after the maximum amount of retries */
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
-#define RETRY_NUMBER 10
-
-#define MSG_END_CHAR "MSGEND"
-#define ACK_END_CHAR "ACKEND"
-#define BRD_END_CHAR "BRDEND"
-#define NSC_END_CHAR "NSCEND"
-
-/* NOTE: You are required to set SSID and PASSWORD of the network where MFR is staying */
-#define SSID 		"SAMPLE_SSID"
-#define PASSWORD 	"SAMPLE_PASSWORD"
-#define MFR_IP_ADDR "SAMPLE_MFR_IP_ADDRESS"
+#define RETRY_NUMBER    10
 
 static int s_retry_num = 0;
 
 static const char *TAG = "wifi broadcast";
-
-int64_t get_time_ms()
-{
-    struct timeval tv_now;
-    gettimeofday(&tv_now, NULL);
-    return (int64_t)tv_now.tv_sec * 1000000L + (int64_t)tv_now.tv_usec;
-}
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
@@ -120,7 +108,7 @@ void udp_connection_w_mfr(uint8_t *data, int len)
 {
 
     // Define the remote server IP address and port
-    const char *mfr_ip = MFR_IP_ADDR;
+    const char *mfr_ip = "192.168.1.3";
     const int mfr_port = 10000;
 
     // Create a UDP socket
@@ -154,21 +142,19 @@ void udp_connection_w_mfr(uint8_t *data, int len)
 
     // Receive data from the server
     int cnt = 0;
-    for (cnt = 0; cnt < RETRY_NUMBER; cnt++)
-    {
+    for (cnt=0; cnt<RETRY_NUMBER; cnt++) {
         len = recvfrom(sock, data, BUF_SIZE, 0, (struct sockaddr *)&dest_addr, &fromlen);
-        if (len > 0)
-        {
+        if (len > 0) {
             ESP_LOGI(TAG, "Received %d bytes", len);
             break;
         }
     }
 
-    if (cnt == RETRY_NUMBER)
-    {
+    if (cnt == RETRY_NUMBER) {
         ESP_LOGE(TAG, "Failed to receive UDP packet: errno %d", errno);
         return;
     }
+
 
     // Write data back to the UART
     uart_write_bytes(ECHO_UART_PORT_NUM, (const char *)data, len);
@@ -176,7 +162,7 @@ void udp_connection_w_mfr(uint8_t *data, int len)
     while (1)
     {
         int len = uart_read_bytes(ECHO_UART_PORT_NUM, data, (BUF_SIZE - 1), 20 / portTICK_PERIOD_MS);
-        if (len > 0 && (strncmp((const char *)data + len - strlen(ACK_END_CHAR), ACK_END_CHAR, strlen(ACK_END_CHAR)) == 0))
+        if (len > 0 && (strncmp((const char *)data + len - 6, "ACKEND", 6) == 0))
         {
             // Send the data
             int err = sendto(sock, data, len, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
@@ -186,44 +172,7 @@ void udp_connection_w_mfr(uint8_t *data, int len)
             }
             break;
         }
-    }
 
-    // Close the socket
-    close(sock);
-}
-
-void send_temperature_to_server(uint8_t *data, int len)
-{
-
-    // Define the remote server IP address and port
-    const char *mfr_ip = MFR_IP_ADDR;
-    const int mfr_port = 10001;
-
-    // Create a UDP socket
-    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (sock < 0)
-    {
-        ESP_LOGE(TAG, "Failed to create socket: errno %d", errno);
-        return;
-    }
-
-    // Set the socket options
-    struct timeval timeout;
-    timeout.tv_sec = 5;
-    timeout.tv_usec = 0;
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-
-    // Set the socket destination address and port
-    struct sockaddr_in dest_addr;
-    dest_addr.sin_addr.s_addr = inet_addr(mfr_ip);
-    dest_addr.sin_family = AF_INET;
-    dest_addr.sin_port = htons(mfr_port);
-
-    // Send the data
-    int err = sendto(sock, data, len, 0, (struct sockaddr *)&dest_addr, (socklen_t)sizeof(dest_addr));
-    if (err < 0)
-    {
-        ESP_LOGE(TAG, "Failed to send UDP packet: errno %d", errno);
     }
 
     // Close the socket
@@ -232,6 +181,9 @@ void send_temperature_to_server(uint8_t *data, int len)
 
 void wifi_start_sta(void)
 {
+    #define SSID "sprout-new"
+    #define PASSWORD "youknowwho6"
+
     xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
 
     wifi_config_t wifi_config = {
@@ -341,8 +293,8 @@ void wifi_init(void)
                                                         &instance_got_ip));
 }
 
-#define WIFI_BRD_AVAIL 1
-#define WIFI_BRD_NOT_AVAIL 0
+#define WIFI_BRD_AVAIL      1
+#define WIFI_BRD_NOT_AVAIL  0
 int wifi_brd_flag = WIFI_BRD_NOT_AVAIL;
 uint8_t beacon_raw[BUF_SIZE] = {
     0x80, 0x00,
@@ -364,27 +316,13 @@ uint8_t beacon_raw_size = 0;
 
 static void announce_task(void *arg)
 {
-#ifdef EVALUATION
-    int i = 0;
-#endif
 
     while (1)
     {
         if (wifi_brd_flag == WIFI_BRD_AVAIL && beacon_raw_size)
         {
-#ifdef EVALUATION
-            int64_t t = get_time_ms();
-#endif
             ESP_ERROR_CHECK(esp_wifi_80211_tx(WIFI_IF_AP, beacon_raw, beacon_raw_size, true));
-#ifdef EVALUATION
-            if (i % 100 == 0)
-            {
-
-                ESP_LOGI(TAG, "time for esp_wifi_80211_tx: %08lld\n", get_time_ms() - t);
-                i = 0;
-            }
-            i++;
-#endif
+            // ESP_LOGI(TAG, "esp_wifi_80211_tx()\n");
         }
         vTaskDelay(50 / portTICK_PERIOD_MS);
     }
@@ -424,44 +362,23 @@ static void uart_task(void *arg)
         if (len > 6)
         {
             ESP_LOGD(TAG, "Recv str length: %d", len);
-            if (strncmp((const char *)data + len - strlen(MSG_END_CHAR), MSG_END_CHAR, strlen(MSG_END_CHAR)) == 0)
+            if (strncmp((const char *)data + len - 6, "MSGEND", 6) == 0)
             {
                 wifi_brd_flag = WIFI_BRD_NOT_AVAIL;
                 wifi_start_sta();
                 udp_connection_w_mfr(data, len);
                 wifi_start_softap();
+                wifi_brd_flag = WIFI_BRD_AVAIL;
             }
-            else if (strncmp((const char *)data + len - strlen(BRD_END_CHAR), BRD_END_CHAR, strlen(BRD_END_CHAR)) == 0)
+            else
             {
                 wifi_brd_flag = WIFI_BRD_NOT_AVAIL;
-                len -= 6;
-#ifdef EVALUATION
-                int64_t t = get_time_ms();
-#endif
 
                 // Set vendor-specific IE
                 beacon_raw[65] = len + 4;
                 memcpy(beacon_raw + 70, data, len);
                 beacon_raw_size = len + 70;
                 wifi_brd_flag = WIFI_BRD_AVAIL;
-
-#ifdef EVALUATION
-                ESP_LOGI(TAG, "time for UART-BROADCAST: %08lld\n", get_time_ms() - t);
-#endif
-            }
-            else if (strncmp((const char *)data + len - strlen(NSC_END_CHAR), NSC_END_CHAR, strlen(NSC_END_CHAR)) == 0)
-            {
-                wifi_brd_flag = WIFI_BRD_NOT_AVAIL;
-                int64_t t = get_time_ms();
-                wifi_start_sta();
-                send_temperature_to_server(data, len);
-                wifi_start_softap();
-
-                ESP_LOGI(TAG, "time for NSC: %08lld\n", get_time_ms() - t);
-            }
-            else // ERROR
-            {
-                ESP_LOGE(TAG, "not expected UART message\n");
             }
         }
     }

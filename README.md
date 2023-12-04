@@ -69,7 +69,7 @@ We used the below two Android phones for emulating PAISA user device.
 2. [BLU View 1](https://store.google.com/intl/en/ideas/articles/google-pixel-6-features/), running on Android 9 (API Level: 28)
 
 ### Software Requirement
-Each device, besides <i>mfr</i>, requires SDK and development tool for the development.
+Each device, except for <i>mfr</i>, requires SDK and development tool for the development.
 
 #### NXP Board
 1. IDE: [MCUXpresso IDE v11.6.1](https://www.nxp.com/design/software/development-software/mcuxpresso-software-and-tools-/mcuxpresso-integrated-development-environment-ide:MCUXpresso-IDE) (released on 2022-10-03)
@@ -96,7 +96,7 @@ For more details about how to use IDE, please refer to [MCUXpresso IDE User Guid
 
 #### ESP Board
 The details about the ESP board is described [here](https://docs.espressif.com/projects/esp-idf/en/latest/esp32c3/hw-reference/esp32c3/user-guide-devkitc-02.html).
-- IDE: [VSCode Extension](https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/tutorial/install.md), v1.6.1
+- IDE: [VSCode Extension](https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/tutorial/install.mdhttps://docs.espressif.com/projects/esp-idf/en/latest/esp32c3/get-started/index.html#get-started-step-by-step), v1.6.1
 
 
 #### Manufacturer Server (<i>mfr</i>)
@@ -135,9 +135,8 @@ Just make sure that the NXP board is powered from your laptop/desktop. (Check if
 
 **Important Note**
 To run the code on the NXP board successfully, there are a couple of things to be done in advance as follows:
-* The NXP board is wired with the ESP board correctly.
+* The NXP board should be wired with the ESP board correctly.
 * The ESP board is powered and runs with PAISA firmware of the ESP board.
-* SSID/Password/IP address (SSID/PASSWORD/MFR_IP_ADDR) is set properly in the ESP source code.
 * <i>mfr</i> runs PAISA software for it. 
 
 #### ESP Board
@@ -162,14 +161,10 @@ To run <i>mfr</i> PAISA software, type the command as below:
 
         python3 2_ManufacturerServer/ttp_time_srv.py
 
-For the server to receive temperature data, type the command as below:
-
-        python3 2_ManufacturerServer/temp_srv.py
-
-If error occurs due to the address already in use, you may want to figure out if the software is already running; otherwise, you need to change to port number on the file. (e.g. from 10000 to available port number)
+If error occurs due to the address already in use, you may want to figure out if the software is already running; otherwise, you need to change to port number from 10000 to available port number on the file.
 
 #### User Device
-We believe any Android phones running on Android Pie or later can be used for the user device, but 'Google Pixel 6' and 'BLU View 1' are verified for the implementation.
+We believe any Android phones running on Android Pie or later can be used for the user device, but 'Google Pixel 6' and 'BLU View 1' are verified in our implementation.
 
 Developer options should be enabled to download the app from Android Studio directly. Also, USB debugging option is required.
 

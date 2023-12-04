@@ -32,10 +32,6 @@
 /* Board specific includes. */
 #include "board.h"
 
-/* Usart driver includes */
-#include "fsl_usart.h"
-#include "fsl_debug_console.h"
-
 /**
  * @brief Counter returned from NSCFunction.
  */
@@ -56,31 +52,6 @@ typedef __cmse_nonsecure_call void (*NonSecureCallback_t)(void);
 #else
 typedef void (*NonSecureCallback_t)(void) __attribute__((cmse_nonsecure_call));
 #endif
-/*-----------------------------------------------------------*/
-
-#if defined(__IAR_SYSTEMS_ICC__)
-__cmse_nonsecure_entry
-#else
-__attribute__((cmse_nonsecure_entry))
-#endif
-#ifndef WIFI_USART
-	#define WIFI_USART          	USART4
-#endif
-    void
-    send_packet_nsc(uint8_t *msg, size_t msg_len)
-{
-#define BUF_SIZE			(256)
-#define NSC_END_CHAR		"NSCEND"
-
-	if (msg_len > BUF_SIZE - strlen(NSC_END_CHAR)) {
-		PRINTF("[%s] Message is too long\n", "send_packet_nsc()");
-	}
-
-	memcpy(msg+msg_len, NSC_END_CHAR, strlen(NSC_END_CHAR));
-	msg_len += strlen(NSC_END_CHAR);
-
-	USART_WriteBlocking(WIFI_USART, msg, msg_len);
-}
 /*-----------------------------------------------------------*/
 
 #if defined(__IAR_SYSTEMS_ICC__)

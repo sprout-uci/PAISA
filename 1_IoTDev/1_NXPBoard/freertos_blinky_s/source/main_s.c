@@ -58,9 +58,6 @@
 #include <stdio.h>
 #include <time.h>
 #include "fsl_iap.h"
-#include "fsl_anactrl.h"
-#include "fsl_lpadc.h"
-
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
@@ -113,7 +110,6 @@ typedef void (*NonSecureResetHandler_t)(void) __attribute__((cmse_nonsecure_call
 #define M_SRV_URL				"https://bit.ly/3HnHwEu"
 #define MSG_END_CHAR		"MSGEND"
 #define ACK_END_CHAR		"ACKEND"
-#define BRD_END_CHAR		"BRDEND"
 
 #define CONVERT_MS_TO_S		(1000)
 
@@ -404,7 +400,7 @@ static unsigned long saddr = 0x40000;	/* Start of FLASH 1 with NS-User privilege
 uint8_t attest()
 {
 	// It is assumed that the hash of expected result would be stored in the secure flash memory
-	// Given digest is hashed value of address 0x40000 with the size of 0x30000
+	// Given digest is hashed value of address 0x40000 with the size of 0x10000
 	uint8_t expected_digest[HASH_SIZE] = { 0x4B, 0x95, 0x99, 0x39, 0xC0, 0xD7, 0xF5, 0x0A,
 			0x34, 0xF2, 0xA5, 0xDB, 0x50, 0x66, 0x24, 0x22,
 			0x75, 0x74, 0x60, 0x5C, 0x09, 0xB8, 0xE1, 0x3E,
@@ -423,25 +419,6 @@ uint8_t attest()
 //		return 1;
 
 	return 0;
-}
-
-// Currently, the left message of non-secure applications get erased if announcement takes place.
-// This can be readily modified to keep the left message if USART method is converted to non-block transmit/receive.
-void broadcast_msg_w_priority(const uint8_t *msg, size_t msg_len)
-{
-	USART_Type *base = WIFI_USART;
-
-	// if the USART is occupied by other non-secure applications
-	if ( (0U == (base->STAT & USART_STAT_TXIDLE_MASK)) ){
-		// USART disable
-		base->CFG &= ~(USART_CFG_ENABLE_MASK);
-		// wait until USART being disabled
-		while (base->CFG & USART_CFG_ENABLE_MASK == USART_CFG_ENABLE_MASK);
-		// USART enable
-		base->CFG |= USART_CFG_ENABLE_MASK;
-	}
-
-	USART_WriteBlocking(WIFI_USART, msg, msg_len);
 }
 
 void announcement()
@@ -536,10 +513,7 @@ void announcement()
 	memcpy(msg+msg_len, &time_attest, TIME_SIZE);
 	msg_len += TIME_SIZE;
 
-	memcpy(msg+msg_len, BRD_END_CHAR, strlen(BRD_END_CHAR));
-	msg_len += strlen(BRD_END_CHAR);
-
-	broadcast_msg_w_priority(msg, msg_len);
+	USART_WriteBlocking(WIFI_USART, msg, msg_len);
 }
 
 
@@ -581,39 +555,6 @@ void ctimer_init()
 
 }
 
-void lpadc_init(void)
-{
-    /* Maximum advised frequency for temperature sensor measurement is 6MHz whether the source is XTAL or FRO.
-     * However, the ADC clock divider value is in the range from 1 to 8, so the PLL0(attached to 16MHZ XTAL)
-     * is selected as the ADC clock source with ADC clock divider value as 4.
-     */
-    /*!< Set up PLL */
-    CLOCK_AttachClk(kEXT_CLK_to_PLL0);  /*!< Switch PLL0CLKSEL to EXT_CLK */
-    POWER_DisablePD(kPDRUNCFG_PD_PLL0); /* Ensure PLL is on  */
-    POWER_DisablePD(kPDRUNCFG_PD_PLL0_SSCG);
-    const pll_setup_t pll0Setup = {
-        .pllctrl = SYSCON_PLL0CTRL_CLKEN_MASK | SYSCON_PLL0CTRL_SELI(19U) | SYSCON_PLL0CTRL_SELP(9U),
-        .pllndec = SYSCON_PLL0NDEC_NDIV(1U),
-        .pllpdec = SYSCON_PLL0PDEC_PDIV(16U),
-        .pllsscg = {0x0U, (SYSCON_PLL0SSCG1_MDIV_EXT(32U) | SYSCON_PLL0SSCG1_SEL_EXT_MASK)},
-        .pllRate = 16000000U,
-        .flags   = PLL_SETUPFLAG_WAITLOCK};
-//    CLOCK_SetPLL0Freq(&pll0Setup);
-
-    CLOCK_SetClkDiv(kCLOCK_DivAdcAsyncClk, 0U, true);  /*!< Reset ADCCLKDIV divider counter and halt it */
-    CLOCK_SetClkDiv(kCLOCK_DivAdcAsyncClk, 4U, false); /*!< Set ADCCLKDIV divider to value 4 */
-
-    CLOCK_AttachClk(kPLL0_to_ADC_CLK); /*!< Switch ADC_CLK to PLL0 */
-
-    /* Disable LDOGPADC power down */
-    POWER_DisablePD(kPDRUNCFG_PD_LDOGPADC);
-    /* Disable Temperature sensor power down. */
-    POWER_DisablePD(kPDRUNCFG_PD_TEMPSENS);
-
-    ANACTRL_Init(ANACTRL);
-    ANACTRL_EnableVref1V(ANACTRL, true);
-}
-
 int main(void)
 {
 	usart_config_t config;
@@ -653,7 +594,6 @@ int main(void)
 
     BOARD_InitBootPins();
     BOARD_InitBootClocks();
-//    BOARD_BootClockPLL1_150M();
     BOARD_InitDebugConsole();
 
 	if( CRYPTO_InitHardware() != kStatus_Success )
@@ -672,8 +612,6 @@ int main(void)
 	config.enableRx     = true;
 
 	USART_Init(WIFI_USART, &config, WIFI_USART_CLK_FREQ);
-
-	lpadc_init();
 
     /* Init RTC */
    	RTC_Init(RTC);

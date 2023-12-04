@@ -49,11 +49,10 @@ functional_group:
           flexcomm3_irq, flexcomm4_irq, flexcomm5_irq, flexcomm6_irq, flexcomm7_irq, global_irq0, global_irq1, lspi_hs_irq, mailbox_irq, mrt_irq, os_event_irq, pin_int4,
           pin_int5, pin_int6, pin_int7, pin_irq0, pin_irq1, pin_irq2, pin_irq3, plu_irq, pq_irq, qddkey_irq, rtc_irq, sct_irq, sdio_irq, sdma0_irq, sdma1_irq, sec_hypervisor_call_irq,
           sec_int0, sec_int1, sec_vio_irq, sha_irq, sys_irq, usb0_irq, usb0_needclk_irq, usb1_irq, usb1_needclk_irq, usb1_utmi_irq, utick_irq]}, Masked: {id: [ctimer2_irq]}}
-    - security: {Secure: {id: [acmp_capt_irq, casper_irq, ctimer0_irq, ctimer1_irq, ctimer2_irq, ctimer3_irq, ctimer4_irq, flexcomm0_irq, flexcomm1_irq, flexcomm2_irq,
-          flexcomm3_irq, flexcomm4_irq, flexcomm5_irq, flexcomm6_irq, flexcomm7_irq, global_irq0, global_irq1, lspi_hs_irq, mailbox_irq, mrt_irq, os_event_irq, pin_int4,
-          pin_int5, pin_int6, pin_int7, pin_irq0, pin_irq1, pin_irq2, pin_irq3, plu_irq, pq_irq, qddkey_irq, rtc_irq, sct_irq, sdio_irq, sdma0_irq, sdma1_irq, sec_hypervisor_call_irq,
-          sec_int0, sec_int1, sec_vio_irq, sha_irq, sys_irq, usb0_irq, usb0_needclk_irq, usb1_irq, usb1_needclk_irq, usb1_utmi_irq, utick_irq]}, Non-secure: {id: [
-          adc_irq]}}
+    - security: {Secure: {id: [acmp_capt_irq, adc_irq, casper_irq, ctimer0_irq, ctimer1_irq, ctimer2_irq, ctimer3_irq, ctimer4_irq, flexcomm0_irq, flexcomm1_irq,
+          flexcomm2_irq, flexcomm3_irq, flexcomm4_irq, flexcomm5_irq, flexcomm6_irq, flexcomm7_irq, global_irq0, global_irq1, lspi_hs_irq, mailbox_irq, mrt_irq, os_event_irq,
+          pin_int4, pin_int5, pin_int6, pin_int7, pin_irq0, pin_irq1, pin_irq2, pin_irq3, plu_irq, pq_irq, qddkey_irq, rtc_irq, sct_irq, sdio_irq, sdma0_irq, sdma1_irq,
+          sec_hypervisor_call_irq, sec_int0, sec_int1, sec_vio_irq, sha_irq, sys_irq, usb0_irq, usb0_needclk_irq, usb1_irq, usb1_needclk_irq, usb1_utmi_irq, utick_irq]}}
   - ports:
     - pio0: {Non-masked: {id: ['0', '1', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '2', '20', '21', '22', '23', '24', '25', '26', '27', '28',
           '29', '3', '30', '31', '4', '5', '6', '7', '8', '9']}}
@@ -66,9 +65,9 @@ functional_group:
       security: ns_user, start: '0x00000000', size: '0x00004000'}, {memory: AHBperipherals_port10_ahb_secure_ctrl_area, security: ns_user, start: '0x00000000', size: '0x00004000'},
     {memory: USB_RAM, security: ns_user, start: '0x00000000', size: '0x00004000'}]
   - masters: {ns_user: {id: [HASH, MCM33C, MCM33S, PQ, SDIO, SDMA0, SDMA1, USBFSD, USBFSH]}}
-  - peripherals: {ns_user: {id: [ADC0, AHB_SECURE_CTRL, ANACTRL, CRC_ENGINE, CTIMER0, CTIMER1, CTIMER3, CTIMER4, DBGMAILBOX, DMA0, DMA1, FLASH, FLEXCOMM1, FLEXCOMM2,
-        FLEXCOMM3, FLEXCOMM5, FLEXCOMM6, FLEXCOMM7, GINT0, GINT1, GPIO, INPUTMUX, MAILBOX, MRT0, OSTIMER, PINT, PLU, PMC, POWERQUAD, PRINCE, PUF, RNG, SCT0, SDIF,
-        SECGPIO, SECPINT, SPI8, SYSCTL, USB0, USBFSH, USBHSD, USBHSH, USBPHY, UTICK0, WWDT]}, s_priv: {id: [CASPER, CTIMER2, FLEXCOMM0, FLEXCOMM4, HASHCRYPT, IOCON,
+  - peripherals: {ns_user: {id: [ADC0, AHB_SECURE_CTRL, ANACTRL, CASPER, CRC_ENGINE, CTIMER0, CTIMER1, CTIMER3, CTIMER4, DBGMAILBOX, DMA0, DMA1, FLASH, FLEXCOMM1,
+        FLEXCOMM2, FLEXCOMM3, FLEXCOMM4, FLEXCOMM5, FLEXCOMM6, FLEXCOMM7, GINT0, GINT1, GPIO, INPUTMUX, MAILBOX, MRT0, OSTIMER, PINT, PLU, PMC, POWERQUAD, PRINCE,
+        PUF, RNG, SCT0, SDIF, SECGPIO, SECPINT, SPI8, SYSCTL, USB0, USBFSH, USBHSD, USBHSH, USBPHY, UTICK0, WWDT]}, s_priv: {id: [CTIMER2, FLEXCOMM0, HASHCRYPT, IOCON,
         RTC, SYSCON]}}
 - sau:
   - enabled: 'true'
@@ -230,10 +229,10 @@ void BOARD_InitTrustZone()
     AHB_SECURE_CTRL->SEC_CTRL_APB_BRIDGE[0].SEC_CTRL_APB_BRIDGE1_MEM_CTRL2 = 0xFFCCFFFFU;
     AHB_SECURE_CTRL->SEC_CTRL_APB_BRIDGE[0].SEC_CTRL_APB_BRIDGE1_MEM_CTRL3 = 0xFFCFCCFCU;
     AHB_SECURE_CTRL->SEC_CTRL_AHB_PORT8_SLAVE0_RULE = 0xCFCCFCFFU;
-    AHB_SECURE_CTRL->SEC_CTRL_AHB_PORT8_SLAVE1_RULE = 0xFFFCCFCCU;
+    AHB_SECURE_CTRL->SEC_CTRL_AHB_PORT8_SLAVE1_RULE = 0xFFFCCCCCU;
     AHB_SECURE_CTRL->SEC_CTRL_AHB_PORT9_SLAVE0_RULE = 0xCCCCFFFFU;
     AHB_SECURE_CTRL->SEC_CTRL_AHB_PORT9_SLAVE1_RULE = 0xCFFCCFFCU;
-    AHB_SECURE_CTRL->SEC_CTRL_AHB_PORT10[0].SLAVE0_RULE = 0xCCFFCCFCU;
+    AHB_SECURE_CTRL->SEC_CTRL_AHB_PORT10[0].SLAVE0_RULE = 0xCCCFCCFCU;
     AHB_SECURE_CTRL->SEC_CTRL_AHB_PORT10[0].SLAVE1_RULE = 0xFFFFFFCCU;
 
     /* Security level configuration of masters */
@@ -264,7 +263,7 @@ void BOARD_InitTrustZone()
     /* Possible values for every interrupt:
      *  0b0    Secure
      *  0b1    Non-secure */
-    NVIC->ITNS[0] = 0x00400000U;
+    NVIC->ITNS[0] = 0;
     NVIC->ITNS[1] = 0;
 
     /* Global Options */
