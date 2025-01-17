@@ -1,6 +1,6 @@
 # Caveat (IoT) Emptor: Towards Transparency of IoT Device Presence
 
-**[THIS REPOSITORY IS UNDER CONSTRUCTION]**
+This paper has been accepted in CCS 2023 - [Link](https://dl.acm.org/doi/pdf/10.1145/3576915.3623089)
 
 As many types of IoT devices worm their way into numerous settings and many aspects of our daily lives, awareness of their presence and functionality becomes a source of major concern. Hidden IoT devices can snoop (via sensing) on nearby unsuspecting users, and impact the environment where unaware users are present, via actuation. This prompts, respectively, privacy and security/safety issues. The dangers of hidden IoT devices have been recognized and prior research suggested some means of mitigation, mostly based on traffic analysis or using specialized hardware to uncover devices. While such approaches are partially effective, there is currently no comprehensive approach to IoT device transparency. 
 
